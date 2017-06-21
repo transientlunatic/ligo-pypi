@@ -1,0 +1,121 @@
+try:
+    from setuptools import setup
+    from setuptools.command.install import install as SetuptoolsInstall
+except ImportError:
+    from distutils.core import setup
+
+from subprocess import call
+import os
+
+from setuptools.command.install import install as SetuptoolsInstall
+
+
+try:
+    virtualenv =  os.environ['VIRTUAL_ENV']
+    print("This installation is being completed within a virtual environment at {}".format(virtualenv))
+except KeyError:
+    print("Currently only installation within a virtualenv is supported.")
+    sys.exit(1)
+
+def install_framelib():
+    os.chdir("lalsuite")
+    os.chdir("libframe-8.30")
+    print "Run the FrameL Bootstrap"
+    call(["autoreconf", "--install"])
+    print "Run the FrameL Configuration"
+    call(["bash", "configure", "--silent", "--enable-silent-rules", "--prefix=/{}".format(virtualenv)])
+    print "Making FrameL"
+    call(["make",  "-j", "--silent"])
+    print "Installing FrameL"
+    call(["make", "install", "--silent"])
+    os.chdir("../../")
+
+def install_metaio():
+    os.chdir("lalsuite")
+    os.chdir("metaio")
+    print "Run the MetaIO Bootstrap"
+    call(["autoreconf", "--install", "--force"])
+    print "Run MetaIO Configuration"
+    os.environ["LDFLAGS"] = "-L/{}/lib".format(virtualenv)
+    call(["bash",  "configure",  "--enable-silent-rules", "--prefix=/{}".format(virtualenv),  "--enable-swig-python"])
+    print "Make MetaIO"
+    call(["make",  "-j", "--silent"])
+    print "Install MetaIO"
+    call(["make", "install", "--silent"])
+    os.environ["LD_LIBRARY_PATH"] = "{}/lib".format(virtualenv)
+    os.chdir("../../")
+
+def install_lalsuite():
+    os.chdir("lalsuite")
+    os.chdir("lalsuite")
+    print "Run LALSuite Bootstrap"
+    os.environ['CPATH'] = "{}/include".format(virtualenv)
+    #call(["bash", "./00boot"])
+    #call(["autoreconf", "-B{}/lib".format(virtualenv)])
+    print "Run LALSuite Config"
+    os.environ["LIBFRAME_LIBS"] = "-L{}/lib".format(virtualenv)
+    call([
+        "env", "LDFLAGS=-L{}/lib".format(virtualenv),
+        "bash", "./configure",
+        #"-q",
+        "--enable-silent-rules",
+        "--prefix={}".format(virtualenv),
+        "--enable-swig-python",
+        "LIBS=-L/{}/lib/".format(virtualenv),
+        "LDFLAGS=-L/{}/lib/".format(virtualenv),
+        "CFLAGS=-L{}/include".format(virtualenv),
+        "LIBFRAME_LIBS=-L/{}/lib/".format(virtualenv)
+    ])
+    print "Make LALSuite"
+    call(["make",  "-j", "--silent"])
+    print "Install LALSuite"
+    call(["make", "install", "--silent"])
+    os.chdir("pylal")
+    call(["python", "setup.py", "install"])
+    os.chdir("../../")
+    os.chdir("lalsuite/glue")
+    call(["python", "setup.py", "install"])
+    
+class MyInstall(SetuptoolsInstall):
+    def run(self):
+        SetuptoolsInstall.run(self)
+        install_framelib()
+        install_metaio()
+        install_lalsuite()
+
+requirements = [
+    "numpy",
+    "healpy",
+    "h5py",
+]
+        
+setup(
+    name='lalsuite',
+    version='0.0.1',
+    description="A Pythonic installer for LALSuite",
+    # long_description=readme + '\n\n' + history,
+    author="LIGO Collaboration / Daniel Williams",
+    author_email='daniel.williams@ligo.org',
+    url='https://git.ligo.org/daniel-williams/python-lalsuite',
+    packages=[
+         'lalsuite',
+    ],
+    package_dir={'lalsuite':
+                 'lalsuite'},
+    # include_package_data=True,
+    install_requires=requirements,
+    cmdclass={'install': MyInstall},
+    # license="GPLv3",
+    # zip_safe=False,
+    # keywords='minke',
+    # classifiers=[
+    #     'Development Status :: 3 - Alpha',
+    #     'Intended Audience :: Science/Research',
+    #     'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+    #     'Natural Language :: English',
+    #     'Programming Language :: Python :: 3',
+    #     'Programming Language :: Python :: 3.3',
+    #     'Programming Language :: Python :: 3.4',
+    #     'Programming Language :: Python :: 3.5',
+    # ]
+)

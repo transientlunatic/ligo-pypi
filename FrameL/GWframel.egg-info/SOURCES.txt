@@ -1,0 +1,6 @@
+setup.py
+GWframel.egg-info/PKG-INFO
+GWframel.egg-info/SOURCES.txt
+GWframel.egg-info/dependency_links.txt
+GWframel.egg-info/top_level.txt
+GWframel.egg-info/zip-safe
